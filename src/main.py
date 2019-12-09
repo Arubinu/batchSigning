@@ -184,6 +184,7 @@ class Window( QtWidgets.QMainWindow ):
 	def __init__( self, parent = None ):
 		super( Window, self ).__init__( parent )
 
+		self.drag = 0
 		self.step = 0
 		self.paths = [ '', '', '' ]
 		self.steps = [ [], [], [], [] ]
@@ -733,6 +734,19 @@ class Window( QtWidgets.QMainWindow ):
 					item.setFixedSize( 155, 120 )
 				elif property == 'separator':
 					item.setFixedSize( 80, 2 ) # 90, 2
+
+	def mouseMoveEvent( self, event ):
+		if event.buttons() & QtCore.Qt.LeftButton and self.drag:
+			self.move( event.globalPos() - self.drag )
+			event.accept()
+
+	def mousePressEvent( self, event ):
+		self.drag = 0
+		if event.button() == QtCore.Qt.LeftButton:
+			drag = ( event.globalPos() - self.frameGeometry().topLeft() )
+			if drag.y() < 42:
+				self.drag = drag
+				event.accept()
 
 	def closeEvent( self, event ):
 		if self.process:
