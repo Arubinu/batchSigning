@@ -1,5 +1,5 @@
 QMainWindow {
-	background-color: rgba( 240, 240, 240, 255 );
+	background-color: rgb( 240, 240, 240 );
 }
 
 QCheckBox::indicator,
@@ -34,7 +34,7 @@ QSpinBox:disabled {
 	color: #999;
 }
 
-#centralWidget {
+#centralWidget, #defaultPage, #processPage {
 	color: rgb( 170, 178, 189 );
 	font-size: 13px;
 	background-color: rgb( 77, 80, 86 );
@@ -69,7 +69,7 @@ QSpinBox:disabled {
 }
 
 [cssClass~="separator"] {
-	background-color: rgba( 255, 255, 255, 1 );
+	background-color: rgb( 255, 255, 255 );
 }
 [cssClass~="separator"]:disabled {
 	background-color: rgba( 255, 255, 255, .3 );
@@ -106,8 +106,8 @@ QSpinBox:disabled {
 [cssClass~="button"] {
 	width: 155px;
 	height: 48px;
-	color: rgba( 255, 255, 255, 1 );
-	background-color: rgba( 59, 138, 186, 1 );
+	color: rgb( 255, 255, 255 );
+	background-color: rgb( 59, 138, 186 );
 	border: 0px;
 	border-radius: 24px;
 }
@@ -124,11 +124,11 @@ QSpinBox:disabled {
 [cssClass~="path"] {
 	padding-top: 10px;
 	font-weight: bold;
-	color: rgba( 255, 255, 255, 1 );
+	color: rgb( 255, 255, 255 );
 }
 
 [cssClass~="change"] {
-	color: rgba( 59, 138, 186, 1 );
+	color: rgb( 59, 138, 186 );
 	background-color: transparent;
 	border: 0px;
 }
@@ -152,4 +152,25 @@ QSpinBox:disabled {
 	padding-top: 10px;
 	padding-left: 15px;
 	padding-bottom: 10px;
+}
+
+#infos QLabel {
+	color: rgb( 255, 255, 255 );
+}
+
+#states {
+	font-size: 20px;
+	font-weight: bold;
+}
+
+#preview {
+	background-color: rgba( 0, 0, 0, .1 );
+}
+
+#cancel, #close {
+	border-radius: 4px;
+}
+
+#cancel {
+	background-color: rgb( 192, 57, 43 );
 }

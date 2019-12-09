@@ -62,7 +62,28 @@ def resource( *args, **kwargs ):
 
 	return ( resource_path( path ) )
 
-def process( files, watermark, target, quality = 100, gravity = ( 0, 0 ), position = ( 0, 0 ), size = ( 0, 0 ), sigprogress = None, sigfinished = None ):
+def getfilesize( file ):
+	filesize = str( os.path.getsize( file ) )
+
+	lencut = 0
+	lensize = len( filesize )
+	if ( lensize > 12 ):
+		lencut = 12
+	elif ( lensize > 9 ):
+		lencut = 9
+	elif ( lensize > 6 ):
+		lencut = 6
+	elif ( lensize > 3 ):
+		lencut = 3
+
+	lensuffix = { 0: '', 3: 'K', 6: 'M', 9: 'G', 12: 'T' }
+	if lencut:
+		filesize = filesize[ 0:-( lencut ) ] + '.' + filesize[ -( lencut ):-( lencut - 1 ) ]
+	filesize += ' ' + lensuffix[ lencut ] + 'o'
+
+	return ( filesize )
+
+def process( files, watermark, target, quality = 100, gravity = ( 0, 0 ), position = ( 0, 0 ), size = ( 0, 0 ), stopevent = None, sigprogress = None, sigfinished = None ):
 	global DIVIDE, os_name, startupinfo
 
 	composite = resource( 'bin', os_name, 'composite', bin = True )
@@ -85,6 +106,8 @@ def process( files, watermark, target, quality = 100, gravity = ( 0, 0 ), positi
 	resume = [ [], [] ]
 	total = len( files )
 	for index, file in enumerate( files ):
+		if stopevent and stopevent.is_set():
+			return
 		if sigprogress:
 			sigprogress( index, total, file, None, None, None )
 
@@ -188,11 +211,12 @@ class Window( QtWidgets.QMainWindow ):
 		self.step = 0
 		self.paths = [ '', '', '' ]
 		self.steps = [ [], [], [], [] ]
-		self.process = False
+		self.started = False
+		self.waiting = False
 		self.settings = {}
 		self.sigfinished.connect( self.finished )
 		self.sigprogress.connect( self.progress )
-		self.stop_event = threading.Event()
+		self.stopthread = threading.Event()
 
 	def setup( self ):
 		global EXTENSIONS
@@ -210,14 +234,20 @@ class Window( QtWidgets.QMainWindow ):
 		self.centralWidget.setObjectName( 'centralWidget' )
 		self.setCentralWidget( self.centralWidget )
 		layout = QtWidgets.QVBoxLayout( self.centralWidget )
-		layout.setContentsMargins( 0, 0, 0, 0 )
 		layout.setAlignment( QtCore.Qt.AlignBottom )
+		layout.setContentsMargins( 0, 0, 0, 0 )
+
+		self.defaultPage = QtWidgets.QWidget()
+		self.defaultPage.setObjectName( 'defaultPage' )
+		layout = QtWidgets.QVBoxLayout( self.defaultPage )
+		layout.setAlignment( QtCore.Qt.AlignBottom )
+		layout.setContentsMargins( 0, 0, 0, 0 )
+		self.central( self.defaultPage )
 
 		### Logo
 		wlogo = QtWidgets.QWidget( self )
 		wlogo.setObjectName( 'wlogo' )
 		wlogo.setGeometry( QtCore.QRect( 0, 0, 800, 50 ) )
-		self.centralWidget.stackUnder( wlogo )
 
 		llayout = QtWidgets.QVBoxLayout( wlogo )
 		llayout.setAlignment( QtCore.Qt.AlignCenter )
@@ -312,8 +342,8 @@ class Window( QtWidgets.QMainWindow ):
 		vbwidget.setProperty( 'cssClass', 'vbwidget' )
 		vlayout = QtWidgets.QVBoxLayout( vbwidget )
 		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setSpacing( 18 )
 		vlayout.setContentsMargins( 0, 0, 0, 0 )
+		vlayout.setSpacing( 18 )
 		blayout.addWidget( vbwidget )
 		self.steps[ 0 ].append( vbwidget )
 
@@ -337,8 +367,8 @@ class Window( QtWidgets.QMainWindow ):
 		vcwidget.setProperty( 'cssClass', 'vcwidget' )
 		vlayout = QtWidgets.QVBoxLayout( vcwidget )
 		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setSpacing( 18 )
 		vlayout.setContentsMargins( 0, 0, 0, 0 )
+		vlayout.setSpacing( 18 )
 		blayout.addWidget( vcwidget )
 		self.steps[ 0 ].append( vcwidget )
 
@@ -368,8 +398,8 @@ class Window( QtWidgets.QMainWindow ):
 		vbwidget.setProperty( 'cssClass', 'vbwidget' )
 		vlayout = QtWidgets.QVBoxLayout( vbwidget )
 		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setSpacing( 18 )
 		vlayout.setContentsMargins( 0, 0, 0, 0 )
+		vlayout.setSpacing( 18 )
 		blayout.addWidget( vbwidget )
 		self.steps[ 1 ].append( vbwidget )
 
@@ -393,8 +423,8 @@ class Window( QtWidgets.QMainWindow ):
 		vcwidget.setProperty( 'cssClass', 'vcwidget' )
 		vlayout = QtWidgets.QVBoxLayout( vcwidget )
 		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setSpacing( 18 )
 		vlayout.setContentsMargins( 0, 0, 0, 0 )
+		vlayout.setSpacing( 18 )
 		blayout.addWidget( vcwidget )
 		self.steps[ 1 ].append( vcwidget )
 
@@ -424,8 +454,8 @@ class Window( QtWidgets.QMainWindow ):
 		vbwidget.setProperty( 'cssClass', 'vbwidget' )
 		vlayout = QtWidgets.QVBoxLayout( vbwidget )
 		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setSpacing( 18 )
 		vlayout.setContentsMargins( 0, 0, 0, 0 )
+		vlayout.setSpacing( 18 )
 		blayout.addWidget( vbwidget )
 		self.steps[ 2 ].append( vbwidget )
 
@@ -442,8 +472,8 @@ class Window( QtWidgets.QMainWindow ):
 		vcwidget.setProperty( 'cssClass', 'vcwidget' )
 		vlayout = QtWidgets.QVBoxLayout( vcwidget )
 		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setSpacing( 18 )
 		vlayout.setContentsMargins( 0, 0, 0, 0 )
+		vlayout.setSpacing( 18 )
 		blayout.addWidget( vcwidget )
 		self.steps[ 2 ].append( vcwidget )
 
@@ -466,8 +496,8 @@ class Window( QtWidgets.QMainWindow ):
 		vbwidget.setProperty( 'cssClass', 'vbwidget' )
 		vlayout = QtWidgets.QVBoxLayout( vbwidget )
 		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setSpacing( 18 )
 		vlayout.setContentsMargins( 0, 0, 0, 0 )
+		vlayout.setSpacing( 18 )
 		blayout.addWidget( vbwidget )
 
 		bapply = QtWidgets.QPushButton( 'Apply' )
@@ -486,8 +516,8 @@ class Window( QtWidgets.QMainWindow ):
 		settings = QtWidgets.QWidget()
 		settings.setObjectName( 'settings' )
 		slayout = QtWidgets.QGridLayout( settings )
-		slayout.setContentsMargins( 15, 15, 15, 10 )
 		slayout.setAlignment( QtCore.Qt.AlignTop )
+		slayout.setContentsMargins( 15, 15, 15, 10 )
 		slayout.setSpacing( 20 )
 		layout.addWidget( settings )
 
@@ -602,6 +632,91 @@ class Window( QtWidgets.QMainWindow ):
 		mlayout.addWidget( sheight, 0, 4 )
 		self.settings[ 'height' ] = sheight
 
+		### Process
+		self.processPage = QtWidgets.QWidget( self )
+		self.processPage.setObjectName( 'processPage' )
+
+		layout = QtWidgets.QGridLayout( self.processPage )
+		layout.setAlignment( QtCore.Qt.AlignBottom )
+		layout.setContentsMargins( 30, 0, 30, 30 )
+		layout.setSpacing( 20 )
+		layout.setVerticalSpacing( 38 )
+
+		## Progressbar
+		progressbar = QtWidgets.QProgressBar()
+		progressbar.setObjectName( 'progressbar' )
+		layout.addWidget( progressbar, 0, 0, 1, 2 )
+
+		## Preview
+		preview = QtWidgets.QLabel()
+		preview.setAlignment( QtCore.Qt.AlignBottom | QtCore.Qt.AlignCenter )
+		preview.setObjectName( 'preview' )
+		preview.setFixedHeight( 320 )
+		layout.addWidget( preview, 1, 0 )
+
+		## Infos
+		infos = QtWidgets.QWidget()
+		infos.setContentsMargins( 0, 0, 0, 0 )
+		infos.setObjectName( 'infos' )
+		ilayout = QtWidgets.QVBoxLayout( infos )
+		ilayout.setAlignment( QtCore.Qt.AlignBottom | QtCore.Qt.AlignRight )
+		ilayout.setContentsMargins( 0, 0, 0, 0 )
+		ilayout.setSpacing( 20 )
+		layout.addWidget( infos, 1, 1 )
+
+		infos.setFixedWidth( 200 )
+
+		# Filename
+		filename = QtWidgets.QLabel()
+		filename.setAlignment( QtCore.Qt.AlignRight )
+		filename.setObjectName( 'filename' )
+		ilayout.addWidget( filename )
+
+		# Filesize
+		filesize = QtWidgets.QLabel()
+		filesize.setAlignment( QtCore.Qt.AlignRight )
+		filesize.setObjectName( 'filesize' )
+		ilayout.addWidget( filesize )
+
+		# States
+		states = QtWidgets.QLabel()
+		states.setAlignment( QtCore.Qt.AlignCenter )
+		states.setTextFormat( QtCore.Qt.RichText )
+		states.setObjectName( 'states' )
+		ilayout.addWidget( states )
+
+		# Cancel
+		self.cancel = QtWidgets.QPushButton( 'Cancel' )
+		self.cancel.setSizePolicy( QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed )
+		self.cancel.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
+		self.cancel.setProperty( 'cssClass', 'button' )
+		self.cancel.setObjectName( 'cancel' )
+		self.cancel.clicked.connect( lambda: self.stopprocess( True ) )
+		ilayout.addWidget( self.cancel )
+
+		# Close
+		self.close = QtWidgets.QPushButton( 'Close' )
+		self.close.setSizePolicy( QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed )
+		self.close.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
+		self.close.setProperty( 'cssClass', 'button' )
+		self.close.setObjectName( 'close' )
+		self.close.hide()
+		self.close.clicked.connect( lambda: self.stopprocess( True ) )
+		ilayout.addWidget( self.close )
+
+		self.infos = {
+			'progressbar':	progressbar,
+			'preview':	preview,
+			'filename':	filename,
+			'filesize':	filesize,
+			'states':	states
+		}
+
+		### Header on top
+		self.defaultPage.stackUnder( wlogo )
+		self.processPage.stackUnder( wlogo )
+
+		### Values
 		squality.setValue( 100 )
 		csize.setChecked( False )
 		swidth.setValue( 100 )
@@ -609,6 +724,15 @@ class Window( QtWidgets.QMainWindow ):
 
 		self.change()
 		self.update()
+
+	def central( self, widget ):
+		layout = self.centralWidget.layout()
+
+		if layout.count():
+			layout.takeAt( 0 ).widget().hide()
+
+		layout.addWidget( widget )
+		widget.show()
 
 	def change( self, *args ):
 		self.settings[ 'width' ].setEnabled( bool( self.settings[ 'resize' ].checkState() ) )
@@ -631,21 +755,52 @@ class Window( QtWidgets.QMainWindow ):
 		folder = QFileDialog.getExistingDirectory( None, title, path, options = options )
 		return ( folder )
 
-	def progress( self, index, total, file, cmd, error, output ):
-		#print( 'progress:', index, total, file, cmd, error, output )
+	def progress( self, index, total, file = '', cmd = None, error = None, output = None ):
+		if total:
+			self.infos[ 'progressbar' ].setRange( 0, total )
+			self.infos[ 'progressbar' ].setValue( index )
+
 		if error is None:
-			pass
+			length = max( 3, len( str( total ) ) )
+			template = '<pre>[ <span style="font-size: %dpx;"><span style="color: rgb( 231, 76, 60 );">%s</span> %s / %s</span> ]</pre>'
+
+			fontsize = 10
+			fontsizes = [ 17, 17, 17, 14, 12 ]
+			if length <= len( fontsizes ):
+				fontsize = fontsizes[ length - 1 ]
+
+			text = template % (
+				fontsize,
+				str( self.errors ).ljust( length, ' ' ),
+				str( index + 1 ).rjust( length, '0' ),
+				str( total ).rjust( length, '0' )
+			)
+
+			self.infos[ 'states' ].setText( text )
+
+			if file:
+				self.infos[ 'filename' ].setText( os.path.basename( file ) )
+				self.infos[ 'filesize' ].setText( getfilesize( file ) )
+
+				pixmap = QtGui.QPixmap( file )
+				if pixmap and not pixmap.isNull():
+					width = self.infos[ 'preview' ].width()
+					height = self.infos[ 'preview' ].height()
+
+					pixmap = pixmap.scaled( width, height, ( QtCore.Qt.KeepAspectRatio | QtCore.Qt.SmoothTransformation ) )
+					self.infos[ 'preview' ].setPixmap( pixmap )
 		else:
+			self.infos[ 'progressbar' ].setValue( index + 1 )
 			# create resume file
 			#print( 'cmd:', cmd )
 			if error:
+				self.errors += 1
 				#print( 'output:', output )
 				pass
 			pass
 
 	def finished( self, success, errors ):
-		#print( 'finished:', success, errors )
-		pass
+		self.stopprocess()
 
 	def define( self, step ):
 		if step >= 0 and step < len( self.steps ):
@@ -708,13 +863,16 @@ class Window( QtWidgets.QMainWindow ):
 				'gravity':		gravity,
 				'position':		position,
 				'size':			size,
+				'stopevent':	self.stopthread,
 				'sigprogress':	self.sigprogress.emit,
 				'sigfinished':	self.sigfinished.emit
 			}
 
+			self.errors = 0
+			self.startprocess()
+
 			self.thread = threading.Thread( target = process, args = args, kwargs = kwargs, daemon = True )
 			self.thread.start()
-			self.thread.join()
 			return
 
 		for index, items in enumerate( self.steps ):
@@ -735,6 +893,39 @@ class Window( QtWidgets.QMainWindow ):
 				elif property == 'separator':
 					item.setFixedSize( 80, 2 ) # 90, 2
 
+	def startprocess( self ):
+		if not self.started:
+			self.started = True
+			self.progress( 0, 0 )
+			self.central( self.processPage )
+
+	def stopprocess( self, user = False ):
+		if self.started and not self.waiting:
+			self.waiting = True
+			if self.cancel.isVisible():
+				self.cancel.hide()
+				self.close.show()
+
+				if not user:
+					self.infos[ 'filename' ].setText( '' )
+					self.infos[ 'filesize' ].setText( '' )
+					self.infos[ 'preview' ].setPixmap( QtGui.QPixmap() )
+
+				self.cancel.setText( 'Waiting ...' )
+				if self.thread and self.thread.is_alive():
+					self.stopthread.set()
+					self.thread.join()
+			else:
+				self.central( self.defaultPage )
+				self.close.hide()
+				self.cancel.show()
+
+				self.started = False
+				self.stopthread.clear()
+				self.cancel.setText( 'Cancel' )
+
+			self.waiting = False
+
 	def mouseMoveEvent( self, event ):
 		if event.buttons() & QtCore.Qt.LeftButton and self.drag:
 			self.move( event.globalPos() - self.drag )
@@ -749,10 +940,10 @@ class Window( QtWidgets.QMainWindow ):
 				event.accept()
 
 	def closeEvent( self, event ):
-		if self.process:
-			event.ignore()
-		else:
+		if not self.started or not self.cancel.isVisible():
 			event.accept()
+		else:
+			event.ignore()
 
 def launch():
 	os.chdir( resource_path() )
