@@ -1,0 +1,155 @@
+QMainWindow {
+	background-color: rgba( 240, 240, 240, 255 );
+}
+
+QCheckBox::indicator,
+QRadioButton::indicator {
+	margin: 1px;
+	width: 16px;
+	height: 16px;
+	border: 0px;
+}
+QCheckBox::indicator:checked {
+	image: url(./resources/checkbox_checked.png);
+}
+QCheckBox::indicator:unchecked {
+	image: url(./resources/checkbox_unchecked.png);
+}
+QRadioButton::indicator:checked {
+	image: url(./resources/radio_checked.png);
+}
+QRadioButton::indicator:unchecked {
+	image: url(./resources/radio_unchecked.png);
+}
+
+QSpinBox {
+	padding: 4px 12px;
+	background-color: rgba( 0, 0, 0, .3 );
+	color: #fff;
+	border: 0px;
+	border-radius: 4px;
+}
+QSpinBox:disabled {
+	background-color: rgba( 0, 0, 0, .2 );
+	color: #999;
+}
+
+#centralWidget {
+	color: rgb( 170, 178, 189 );
+	font-size: 13px;
+	background-color: rgb( 77, 80, 86 );
+	border-radius: 5px;
+}
+
+#logo {
+	width: 281px;
+	height: 50px;
+	border-image: url(./resources/logo.png) 0 0 0 0 stretch stretch;
+}
+
+#cross, #minimize, #maximize {
+	margin: 0px;
+	padding: 0px;
+	background: transparent;
+}
+#cross {
+	border-image: url(./resources/Status_Unavailable_2x.png) 0 0 0 0 stretch stretch;
+}
+#minimize {
+	border-image: url(./resources/Status_Partially_2x.png) 0 0 0 0 stretch stretch;
+}
+#maximize {
+	border-image: url(./resources/Status_None_2x.png) 0 0 0 0 stretch stretch;
+}
+#cross:hover {
+	border-image: url(./resources/Status_Unavailable_2xa.png) 0 0 0 0 stretch stretch;
+}
+#minimize:hover {
+	border-image: url(./resources/Status_Partially_2xa.png) 0 0 0 0 stretch stretch;
+}
+
+[cssClass~="separator"] {
+	background-color: rgba( 255, 255, 255, 1 );
+}
+[cssClass~="separator"]:disabled {
+	background-color: rgba( 255, 255, 255, .3 );
+}
+
+#signature, #gallery, #target, #apply {
+	background: transparent;
+}
+/*
+#signature:disabled, #gallery:disabled, #target:disabled, #apply:disabled {
+	opacity: .5;
+}
+#signature {
+	width: 42px;
+	height: 42px;
+	image: url(./resources/signature.png) 0 0 0 0 stretch stretch;
+}
+#gallery {
+	width: 42px;
+	height: 42px;
+	image: url(./resources/gallery.png) 0 0 0 0 stretch stretch;
+}
+#target {
+	width: 42px;
+	height: 42px;
+	image: url(./resources/target.png) 0 0 0 0 stretch stretch;
+}
+#apply {
+	width: 42px;
+	height: 42px;
+	image: url(./resources/apply.png) 0 0 0 0 stretch stretch;
+}
+*/
+[cssClass~="button"] {
+	width: 155px;
+	height: 48px;
+	color: rgba( 255, 255, 255, 1 );
+	background-color: rgba( 59, 138, 186, 1 );
+	border: 0px;
+	border-radius: 24px;
+}
+[cssClass~="button"]:disabled {
+	color: rgba( 255, 255, 255, .3 );
+	background-color: rgba( 0, 0, 0, .3 );
+}
+
+[cssClass~="note"] {
+	font-size: 10px;
+	color: rgba( 255, 255, 255, .3 );
+}
+
+[cssClass~="path"] {
+	padding-top: 10px;
+	font-weight: bold;
+	color: rgba( 255, 255, 255, 1 );
+}
+
+[cssClass~="change"] {
+	color: rgba( 59, 138, 186, 1 );
+	background-color: transparent;
+	border: 0px;
+}
+
+[cssClass~="details"] {
+	padding-top: 10px;
+	color: rgba( 255, 255, 255, .3 );
+}
+
+#settings {
+	background-color: rgba( 0, 0, 0, .1 );
+	border-radius: 8px;
+}
+
+#settings QLabel {
+	padding-top: 5px;
+	color: rgb( 255, 255, 255 );
+}
+
+#settings QCheckBox {
+	padding-top: 10px;
+	padding-left: 15px;
+	padding-bottom: 10px;
+}
