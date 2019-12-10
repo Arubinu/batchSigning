@@ -83,7 +83,7 @@ def getfilesize( file ):
 
 	return ( filesize )
 
-def process( files, watermark, target, quality = 100, gravity = ( 0, 0 ), position = ( 0, 0 ), size = ( 0, 0 ), stopevent = None, sigprogress = None, sigfinished = None ):
+def process( files, watermark, target, quality = 100, gravity = ( 0, 0 ), position = ( 0, 0 ), size = ( 0, 0 ), stopevent = None, sigprogress = None, sigcanceled = None, sigfinished = None ):
 	global DIVIDE, os_name, startupinfo
 
 	composite = resource( 'bin', os_name, 'composite', bin = True )
@@ -103,12 +103,16 @@ def process( files, watermark, target, quality = 100, gravity = ( 0, 0 ), positi
 	if size[ 0 ] and size[ 1 ]:
 		geometry = '%dx%d%s' % ( size[ 0 ], size[ 1 ], geometry )
 
-	resume = [ [], [] ]
+	resume = [ [], [], [] ]
 	total = len( files )
 	for index, file in enumerate( files ):
 		if stopevent and stopevent.is_set():
-			return
-		if sigprogress:
+			if sigcanceled and not len( resume[ 2 ] ):
+				sigcanceled()
+
+			resume[ 2 ].append( file )
+			continue
+		elif sigprogress:
 			sigprogress( index, total, file, None, None, None )
 
 		q = quality
@@ -134,7 +138,7 @@ def process( files, watermark, target, quality = 100, gravity = ( 0, 0 ), positi
 			sigprogress( index, total, file, cmd, error, output )
 
 	if sigfinished:
-		sigfinished( *resume )
+		sigfinished( ( stopevent and stopevent.is_set() ), *resume )
 
 class Image( QtWidgets.QLabel ): # QtWidgets.QPushButton
 	def __init__( self, name = None, width = 0, height = 0, callback = None, parent = None ):
@@ -201,7 +205,8 @@ class Gravity( QtWidgets.QLabel ):
 		self.reload()
 
 class Window( QtWidgets.QMainWindow ):
-	sigfinished = QtCore.pyqtSignal( list, list )
+	sigcanceled = QtCore.pyqtSignal()
+	sigfinished = QtCore.pyqtSignal( bool, list, list, list )
 	sigprogress = QtCore.pyqtSignal( int, int, str, object, object, object )
 
 	def __init__( self, parent = None ):
@@ -211,9 +216,11 @@ class Window( QtWidgets.QMainWindow ):
 		self.step = 0
 		self.paths = [ '', '', '' ]
 		self.steps = [ [], [], [], [] ]
+		self.resume = ''
 		self.started = False
 		self.waiting = False
 		self.settings = {}
+		self.sigcanceled.connect( self.canceled )
 		self.sigfinished.connect( self.finished )
 		self.sigprogress.connect( self.progress )
 		self.stopthread = threading.Event()
@@ -253,9 +260,9 @@ class Window( QtWidgets.QMainWindow ):
 		llayout.setAlignment( QtCore.Qt.AlignCenter )
 
 		logo = QtWidgets.QLabel()
-		logo.setFixedSize( 140, 25 )
-		logo.setAlignment( QtCore.Qt.AlignCenter )
 		logo.setObjectName( 'logo' )
+		logo.setAlignment( QtCore.Qt.AlignCenter )
+		logo.setFixedSize( 140, 25 )
 		llayout.addWidget( logo )
 
 		### Controls
@@ -288,8 +295,8 @@ class Window( QtWidgets.QMainWindow ):
 
 		## Icon
 		isignature = Image( 'signature', 42, 42 )
-		isignature.setProperty( 'cssClass', 'icon' )
 		isignature.setObjectName( 'isignature' )
+		isignature.setProperty( 'cssClass', 'icon' )
 		ilayout.addWidget( isignature )
 		self.steps[ 0 ].append( isignature )
 
@@ -348,17 +355,17 @@ class Window( QtWidgets.QMainWindow ):
 		self.steps[ 0 ].append( vbwidget )
 
 		bsignature = QtWidgets.QPushButton( 'Select Signature' )
-		bsignature.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		bsignature.setProperty( 'cssClass', 'button' )
 		bsignature.setObjectName( 'bsignature' )
+		bsignature.setProperty( 'cssClass', 'button' )
+		bsignature.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
 		bsignature.clicked.connect( lambda: self.define( 0 ) )
 		vlayout.addWidget( bsignature )
 		self.steps[ 0 ].append( bsignature )
 
 		nsignature = QtWidgets.QLabel( ', '.join( EXTENSIONS ) )
-		nsignature.setAlignment( QtCore.Qt.AlignHCenter )
-		nsignature.setProperty( 'cssClass', 'note' )
 		nsignature.setObjectName( 'nsignature' )
+		nsignature.setProperty( 'cssClass', 'note' )
+		nsignature.setAlignment( QtCore.Qt.AlignHCenter )
 		vlayout.addWidget( nsignature )
 		self.steps[ 0 ].append( nsignature )
 
@@ -373,23 +380,23 @@ class Window( QtWidgets.QMainWindow ):
 		self.steps[ 0 ].append( vcwidget )
 
 		psignature = QtWidgets.QLabel()
-		psignature.setAlignment( QtCore.Qt.AlignHCenter )
-		psignature.setProperty( 'cssClass', 'path' )
 		psignature.setObjectName( 'psignature' )
+		psignature.setProperty( 'cssClass', 'path' )
+		psignature.setAlignment( QtCore.Qt.AlignHCenter )
 		vlayout.addWidget( psignature )
 		self.steps[ 0 ].append( psignature )
 
 		csignature = QtWidgets.QPushButton( 'Change' )
-		csignature.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		csignature.setProperty( 'cssClass', 'change' )
 		csignature.setObjectName( 'csignature' )
+		csignature.setProperty( 'cssClass', 'change' )
+		csignature.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
 		csignature.clicked.connect( lambda: self.define( 0 ) )
 		vlayout.addWidget( csignature )
 
 		dsignature = QtWidgets.QLabel()
-		dsignature.setAlignment( QtCore.Qt.AlignHCenter )
-		dsignature.setProperty( 'cssClass', 'details' )
 		dsignature.setObjectName( 'dsignature' )
+		dsignature.setProperty( 'cssClass', 'details' )
+		dsignature.setAlignment( QtCore.Qt.AlignHCenter )
 		vlayout.addWidget( dsignature )
 		self.steps[ 0 ].append( dsignature )
 
@@ -404,17 +411,17 @@ class Window( QtWidgets.QMainWindow ):
 		self.steps[ 1 ].append( vbwidget )
 
 		bgallery = QtWidgets.QPushButton( 'Select Gallery' )
-		bgallery.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		bgallery.setProperty( 'cssClass', 'button' )
 		bgallery.setObjectName( 'bgallery' )
+		bgallery.setProperty( 'cssClass', 'button' )
+		bgallery.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
 		bgallery.clicked.connect( lambda: self.define( 1 ) )
 		vlayout.addWidget( bgallery )
 		self.steps[ 1 ].append( bgallery )
 
 		ngallery = QtWidgets.QLabel( 'contains: %s' % ', '.join( EXTENSIONS ) )
-		ngallery.setAlignment( QtCore.Qt.AlignHCenter )
-		ngallery.setProperty( 'cssClass', 'note' )
 		ngallery.setObjectName( 'ngallery' )
+		ngallery.setProperty( 'cssClass', 'note' )
+		ngallery.setAlignment( QtCore.Qt.AlignHCenter )
 		vlayout.addWidget( ngallery )
 		self.steps[ 1 ].append( ngallery )
 
@@ -429,23 +436,23 @@ class Window( QtWidgets.QMainWindow ):
 		self.steps[ 1 ].append( vcwidget )
 
 		pgallery = QtWidgets.QLabel()
-		pgallery.setAlignment( QtCore.Qt.AlignHCenter )
-		pgallery.setProperty( 'cssClass', 'path' )
 		pgallery.setObjectName( 'pgallery' )
+		pgallery.setProperty( 'cssClass', 'path' )
+		pgallery.setAlignment( QtCore.Qt.AlignHCenter )
 		vlayout.addWidget( pgallery )
 		self.steps[ 1 ].append( pgallery )
 
 		cgallery = QtWidgets.QPushButton( 'Change' )
-		cgallery.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		cgallery.setProperty( 'cssClass', 'change' )
 		cgallery.setObjectName( 'cgallery' )
+		cgallery.setProperty( 'cssClass', 'change' )
+		cgallery.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
 		cgallery.clicked.connect( lambda: self.define( 1 ) )
 		vlayout.addWidget( cgallery )
 
 		dgallery = QtWidgets.QLabel()
-		dgallery.setAlignment( QtCore.Qt.AlignHCenter )
-		dgallery.setProperty( 'cssClass', 'details' )
 		dgallery.setObjectName( 'dgallery' )
+		dgallery.setProperty( 'cssClass', 'details' )
+		dgallery.setAlignment( QtCore.Qt.AlignHCenter )
 		vlayout.addWidget( dgallery )
 		self.steps[ 1 ].append( dgallery )
 
@@ -460,9 +467,9 @@ class Window( QtWidgets.QMainWindow ):
 		self.steps[ 2 ].append( vbwidget )
 
 		btarget = QtWidgets.QPushButton( 'Select Target' )
-		btarget.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		btarget.setProperty( 'cssClass', 'button' )
 		btarget.setObjectName( 'btarget' )
+		btarget.setProperty( 'cssClass', 'button' )
+		btarget.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
 		btarget.clicked.connect( lambda: self.define( 2 ) )
 		vlayout.addWidget( btarget )
 		self.steps[ 2 ].append( btarget )
@@ -478,16 +485,16 @@ class Window( QtWidgets.QMainWindow ):
 		self.steps[ 2 ].append( vcwidget )
 
 		pgallery = QtWidgets.QLabel()
-		pgallery.setAlignment( QtCore.Qt.AlignHCenter )
-		pgallery.setProperty( 'cssClass', 'path' )
 		pgallery.setObjectName( 'pgallery' )
+		pgallery.setProperty( 'cssClass', 'path' )
+		pgallery.setAlignment( QtCore.Qt.AlignHCenter )
 		vlayout.addWidget( pgallery )
 		self.steps[ 2 ].append( pgallery )
 
 		cgallery = QtWidgets.QPushButton( 'Change' )
-		cgallery.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		cgallery.setProperty( 'cssClass', 'change' )
 		cgallery.setObjectName( 'cgallery' )
+		cgallery.setProperty( 'cssClass', 'change' )
+		cgallery.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
 		cgallery.clicked.connect( lambda: self.define( 2 ) )
 		vlayout.addWidget( cgallery )
 
@@ -501,9 +508,9 @@ class Window( QtWidgets.QMainWindow ):
 		blayout.addWidget( vbwidget )
 
 		bapply = QtWidgets.QPushButton( 'Apply' )
-		bapply.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		bapply.setProperty( 'cssClass', 'button' )
 		bapply.setObjectName( 'bapply' )
+		bapply.setProperty( 'cssClass', 'button' )
+		bapply.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
 		bapply.clicked.connect( lambda: self.update( 4 ) )
 		vlayout.addWidget( bapply )
 		self.steps[ 3 ].append( bapply )
@@ -529,26 +536,26 @@ class Window( QtWidgets.QMainWindow ):
 
 		## Gravity
 		lgravity = QtWidgets.QLabel( 'Gravity:' )
-		lgravity.setAlignment( QtCore.Qt.AlignLeft )
 		lgravity.setObjectName( 'lgravity' )
+		lgravity.setAlignment( QtCore.Qt.AlignLeft )
 		slayout.addWidget( lgravity, 0, 0 )
 
 		gravity = Gravity( 'gravity_', 'png' )
-		gravity.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		gravity.setAlignment( QtCore.Qt.AlignCenter )
 		gravity.setObjectName( 'gravity' )
+		gravity.setAlignment( QtCore.Qt.AlignCenter )
+		gravity.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
 		slayout.addWidget( gravity, 0, 1, 3, 1 )
 		self.settings[ 'gravity' ] = gravity
 
 		## Quality
 		lquality = QtWidgets.QLabel( 'Quality:' )
-		lquality.setAlignment( QtCore.Qt.AlignLeft )
 		lquality.setObjectName( 'lquality' )
+		lquality.setAlignment( QtCore.Qt.AlignLeft )
 		slayout.addWidget( lquality, 0, 3 )
 
 		squality = QtWidgets.QSpinBox()
-		squality.setToolTip( '0 to 100% (for lossless rendering)' )
 		squality.setProperty( 'cssClass', 'spinbox' )
+		squality.setToolTip( '0 to 100% (for lossless rendering)' )
 		squality.setRange( 1, 100 )
 		squality.setAttribute( QtCore.Qt.WA_MacShowFocusRect, 0 )
 		slayout.addWidget( squality, 0, 6 )
@@ -556,35 +563,35 @@ class Window( QtWidgets.QMainWindow ):
 
 		## Position
 		lpositionx = QtWidgets.QLabel( 'Position X:' )
-		lpositionx.setAlignment( QtCore.Qt.AlignLeft )
 		lpositionx.setObjectName( 'lpositionx' )
+		lpositionx.setAlignment( QtCore.Qt.AlignLeft )
 		slayout.addWidget( lpositionx, 1, 3 )
 
 		spositionx = QtWidgets.QSpinBox()
-		spositionx.setToolTip( 'Expresses itself in pixel' )
 		spositionx.setProperty( 'cssClass', 'spinbox' )
-		spositionx.setAttribute( QtCore.Qt.WA_MacShowFocusRect, 0 )
+		spositionx.setToolTip( 'Expresses itself in pixel' )
 		spositionx.setRange( -10000, 10000 )
+		spositionx.setAttribute( QtCore.Qt.WA_MacShowFocusRect, 0 )
 		slayout.addWidget( spositionx, 1, 4 )
 		self.settings[ 'x' ] = spositionx
 
 		lpositiony = QtWidgets.QLabel( 'Position Y:' )
-		lpositiony.setAlignment( QtCore.Qt.AlignLeft )
 		lpositiony.setObjectName( 'lpositiony' )
+		lpositiony.setAlignment( QtCore.Qt.AlignLeft )
 		slayout.addWidget( lpositiony, 1, 5 )
 
 		spositiony = QtWidgets.QSpinBox()
-		spositiony.setToolTip( 'Expresses itself in pixel' )
 		spositiony.setProperty( 'cssClass', 'spinbox' )
-		spositiony.setAttribute( QtCore.Qt.WA_MacShowFocusRect, 0 )
+		spositiony.setToolTip( 'Expresses itself in pixel' )
 		spositiony.setRange( -10000, 10000 )
+		spositiony.setAttribute( QtCore.Qt.WA_MacShowFocusRect, 0 )
 		slayout.addWidget( spositiony, 1, 6 )
 		self.settings[ 'y' ] = spositiony
 
 		## Size
 		more = QtWidgets.QWidget()
-		more.setContentsMargins( 0, 0, 0, 0 )
 		more.setObjectName( 'more' )
+		more.setContentsMargins( 0, 0, 0, 0 )
 		mlayout = QtWidgets.QGridLayout( more )
 		mlayout.setAlignment( QtCore.Qt.AlignRight )
 		mlayout.setContentsMargins( 0, 0, 0, 0 )
@@ -606,29 +613,29 @@ class Window( QtWidgets.QMainWindow ):
 
 		# Width
 		lwidth = QtWidgets.QLabel( 'Width:' )
-		lwidth.setAlignment( QtCore.Qt.AlignLeft )
 		lwidth.setObjectName( 'lwidth' )
+		lwidth.setAlignment( QtCore.Qt.AlignLeft )
 		mlayout.addWidget( lwidth, 0, 1 )
 
 		swidth = QtWidgets.QSpinBox()
-		swidth.setToolTip( 'Expresses itself in pixel' )
 		swidth.setProperty( 'cssClass', 'spinbox' )
-		swidth.setAttribute( QtCore.Qt.WA_MacShowFocusRect, 0 )
+		swidth.setToolTip( 'Expresses itself in pixel' )
 		swidth.setRange( 1, 10000 )
+		swidth.setAttribute( QtCore.Qt.WA_MacShowFocusRect, 0 )
 		mlayout.addWidget( swidth, 0, 2 )
 		self.settings[ 'width' ] = swidth
 
 		# Height
 		lheight = QtWidgets.QLabel( 'Height:' )
-		lheight.setAlignment( QtCore.Qt.AlignLeft )
 		lheight.setObjectName( 'lheight' )
+		lheight.setAlignment( QtCore.Qt.AlignLeft )
 		mlayout.addWidget( lheight, 0, 3 )
 
 		sheight = QtWidgets.QSpinBox()
-		sheight.setToolTip( 'Expresses itself in pixel' )
 		sheight.setProperty( 'cssClass', 'spinbox' )
-		sheight.setAttribute( QtCore.Qt.WA_MacShowFocusRect, 0 )
+		sheight.setToolTip( 'Expresses itself in pixel' )
 		sheight.setRange( 1, 10000 )
+		sheight.setAttribute( QtCore.Qt.WA_MacShowFocusRect, 0 )
 		mlayout.addWidget( sheight, 0, 4 )
 		self.settings[ 'height' ] = sheight
 
@@ -648,11 +655,18 @@ class Window( QtWidgets.QMainWindow ):
 		layout.addWidget( progressbar, 0, 0, 1, 2 )
 
 		## Preview
+		scroll = QtWidgets.QScrollArea();
+		scroll.setAlignment( QtCore.Qt.AlignCenter )
+		scroll.setWidgetResizable( True )
+		scroll.setFixedHeight( 320 )
+		layout.addWidget( scroll, 1, 0 )
+
 		preview = QtWidgets.QLabel()
 		preview.setAlignment( QtCore.Qt.AlignBottom | QtCore.Qt.AlignCenter )
+		preview.setTextFormat( QtCore.Qt.RichText )
+		preview.setWordWrap( True )
 		preview.setObjectName( 'preview' )
-		preview.setFixedHeight( 320 )
-		layout.addWidget( preview, 1, 0 )
+		scroll.setWidget( preview )
 
 		## Infos
 		infos = QtWidgets.QWidget()
@@ -686,23 +700,23 @@ class Window( QtWidgets.QMainWindow ):
 		ilayout.addWidget( states )
 
 		# Cancel
-		self.cancel = QtWidgets.QPushButton( 'Cancel' )
-		self.cancel.setSizePolicy( QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed )
-		self.cancel.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		self.cancel.setProperty( 'cssClass', 'button' )
-		self.cancel.setObjectName( 'cancel' )
-		self.cancel.clicked.connect( lambda: self.stopprocess( True ) )
-		ilayout.addWidget( self.cancel )
+		self.bcancel = QtWidgets.QPushButton( 'Cancel' )
+		self.bcancel.setSizePolicy( QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed )
+		self.bcancel.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
+		self.bcancel.setProperty( 'cssClass', 'button' )
+		self.bcancel.setObjectName( 'cancel' )
+		self.bcancel.clicked.connect( lambda: self.stopprocess( True ) )
+		ilayout.addWidget( self.bcancel )
 
 		# Close
-		self.close = QtWidgets.QPushButton( 'Close' )
-		self.close.setSizePolicy( QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed )
-		self.close.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		self.close.setProperty( 'cssClass', 'button' )
-		self.close.setObjectName( 'close' )
-		self.close.hide()
-		self.close.clicked.connect( lambda: self.stopprocess( True ) )
-		ilayout.addWidget( self.close )
+		self.bclose = QtWidgets.QPushButton( 'Close' )
+		self.bclose.setSizePolicy( QtWidgets.QSizePolicy.MinimumExpanding, QtWidgets.QSizePolicy.Fixed )
+		self.bclose.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
+		self.bclose.setProperty( 'cssClass', 'button' )
+		self.bclose.setObjectName( 'close' )
+		self.bclose.hide()
+		self.bclose.clicked.connect( lambda: self.stopprocess( True ) )
+		ilayout.addWidget( self.bclose )
 
 		self.infos = {
 			'progressbar':	progressbar,
@@ -755,6 +769,39 @@ class Window( QtWidgets.QMainWindow ):
 		folder = QFileDialog.getExistingDirectory( None, title, path, options = options )
 		return ( folder )
 
+	def canceled( self ):
+		self.bcancel.hide()
+		self.bcancel.setText( 'Cancel' )
+		self.bclose.show()
+
+		self.infos[ 'filename' ].setText( '' )
+		self.infos[ 'filesize' ].setText( '' )
+		self.infos[ 'preview' ].setPixmap( QtGui.QPixmap() )
+		self.infos[ 'preview' ].setAlignment( QtCore.Qt.AlignCenter )
+		self.infos[ 'preview' ].setText( ( self.resume or '' ).replace( '\n', '<br>' ) )
+
+		self.waiting = False
+
+	def finished( self, user = False, success = None, errors = None, ignored = None ):
+		resume = ''
+		template = '<div align="left" style="margin: 10px 10px 0px; font-weight: bold; text-decoration: underline;">%s:</div><div align="center" style="margin: 0px 20px;">%s</div>'
+
+		if len( ignored ):
+			files = ''
+			for index, file in enumerate( ignored ):
+				files += '%s%s' % ( ( ', ' if index else '' ), os.path.basename( file ) )
+			resume += template % ( 'Ignored files', files )
+
+		if len( errors ):
+			files = ''
+			for index, file in enumerate( errors ):
+				files += '%s%s' % ( ( ', ' if index else '' ), os.path.basename( file ) )
+			resume += template % ( 'Errors encountered', files )
+
+		self.resume = ( resume or 'Everything went smoothly !' )
+		if not user:
+			self.stopprocess( user = user )
+
 	def progress( self, index, total, file = '', cmd = None, error = None, output = None ):
 		if total:
 			self.infos[ 'progressbar' ].setRange( 0, total )
@@ -791,16 +838,11 @@ class Window( QtWidgets.QMainWindow ):
 					self.infos[ 'preview' ].setPixmap( pixmap )
 		else:
 			self.infos[ 'progressbar' ].setValue( index + 1 )
-			# create resume file
+
 			#print( 'cmd:', cmd )
 			if error:
 				self.errors += 1
 				#print( 'output:', output )
-				pass
-			pass
-
-	def finished( self, success, errors ):
-		self.stopprocess()
 
 	def define( self, step ):
 		if step >= 0 and step < len( self.steps ):
@@ -864,8 +906,9 @@ class Window( QtWidgets.QMainWindow ):
 				'position':		position,
 				'size':			size,
 				'stopevent':	self.stopthread,
+				#'sigcanceled':	self.sigcanceled.emit,
+				'sigfinished':	self.sigfinished.emit,
 				'sigprogress':	self.sigprogress.emit,
-				'sigfinished':	self.sigfinished.emit
 			}
 
 			self.errors = 0
@@ -902,27 +945,29 @@ class Window( QtWidgets.QMainWindow ):
 	def stopprocess( self, user = False ):
 		if self.started and not self.waiting:
 			self.waiting = True
-			if self.cancel.isVisible():
-				self.cancel.hide()
-				self.close.show()
-
-				if not user:
-					self.infos[ 'filename' ].setText( '' )
-					self.infos[ 'filesize' ].setText( '' )
-					self.infos[ 'preview' ].setPixmap( QtGui.QPixmap() )
-
-				self.cancel.setText( 'Waiting ...' )
+			if self.bcancel.isVisible():
 				if self.thread and self.thread.is_alive():
+					def wait( thread, callback ):
+						thread.join()
+						callback()
+
 					self.stopthread.set()
-					self.thread.join()
+					self.bcancel.setText( 'Waiting ...' )
+					thread = threading.Thread( target = wait, args = ( self.thread, self.sigcanceled.emit ), daemon = True )
+					thread.start()
+					return
+				else:
+					self.canceled()
 			else:
 				self.central( self.defaultPage )
-				self.close.hide()
-				self.cancel.show()
+				self.bclose.hide()
+				self.bcancel.show()
 
 				self.started = False
 				self.stopthread.clear()
-				self.cancel.setText( 'Cancel' )
+
+				self.infos[ 'preview' ].setText( '' )
+				self.infos[ 'preview' ].setAlignment( QtCore.Qt.AlignBottom | QtCore.Qt.AlignCenter )
 
 			self.waiting = False
 
@@ -940,7 +985,7 @@ class Window( QtWidgets.QMainWindow ):
 				event.accept()
 
 	def closeEvent( self, event ):
-		if not self.started or not self.cancel.isVisible():
+		if not self.started or not self.bcancel.isVisible():
 			event.accept()
 		else:
 			event.ignore()

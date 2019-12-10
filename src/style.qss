@@ -34,6 +34,11 @@ QSpinBox:disabled {
 	color: #999;
 }
 
+QScrollArea {
+	background: transparent;
+	border: none;
+}
+
 #centralWidget, #defaultPage, #processPage {
 	color: rgb( 170, 178, 189 );
 	font-size: 13px;
@@ -164,6 +169,7 @@ QSpinBox:disabled {
 }
 
 #preview {
+	color: rgb( 255, 255, 255 );
 	background-color: rgba( 0, 0, 0, .1 );
 }
 
