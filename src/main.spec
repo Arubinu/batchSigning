@@ -5,7 +5,7 @@ import sys
 import platform
 
 directory = '..'
-rcpath = './resources'
+rcpath = 'resources'
 binpath = os.path.join( rcpath, 'bin' )
 
 ext = ''
@@ -40,6 +40,8 @@ else:
 
 block_cipher = None
 binpath = os.path.join( binpath, syst )
+gravity = os.path.join( rcpath, 'gravity' )
+controls = os.path.join( rcpath, 'controls' )
 
 a = Analysis(
 	[ name + '.py' ],
@@ -47,11 +49,6 @@ a = Analysis(
 	binaries				= [],
 	datas					= [
 		( os.path.join( 'style.qss' ),							'.' ),
-		( os.path.join( rcpath, 'Status_Unavailable_2x.png' ),	rcpath ),
-		( os.path.join( rcpath, 'Status_Unavailable_2xa.png' ),	rcpath ),
-		( os.path.join( rcpath, 'Status_Partially_2x.png' ),	rcpath ),
-		( os.path.join( rcpath, 'Status_Partially_2xa.png' ),	rcpath ),
-		( os.path.join( rcpath, 'Status_None_2x.png' ),			rcpath ),
 		( os.path.join( rcpath, 'checkbox_checked.png' ),		rcpath ),
 		( os.path.join( rcpath, 'checkbox_unchecked.png' ),		rcpath ),
 		( os.path.join( rcpath, 'icon.png' ),					rcpath ),
@@ -60,15 +57,6 @@ a = Analysis(
 		( os.path.join( rcpath, 'gallery.png' ),				rcpath ),
 		( os.path.join( rcpath, 'target.png' ),					rcpath ),
 		( os.path.join( rcpath, 'apply.png' ),					rcpath ),
-		( os.path.join( rcpath, 'gravity_center.png' ),			rcpath ),
-		( os.path.join( rcpath, 'gravity_northwest.png' ),		rcpath ),
-		( os.path.join( rcpath, 'gravity_north.png' ),			rcpath ),
-		( os.path.join( rcpath, 'gravity_northeast.png' ),		rcpath ),
-		( os.path.join( rcpath, 'gravity_east.png' ),			rcpath ),
-		( os.path.join( rcpath, 'gravity_southeast.png' ),		rcpath ),
-		( os.path.join( rcpath, 'gravity_south.png' ),			rcpath ),
-		( os.path.join( rcpath, 'gravity_southwest.png' ),		rcpath ),
-		( os.path.join( rcpath, 'gravity_west.png' ),			rcpath )
 
 	],
 	hiddenimports			= [ 'engineio.async_eventlet' ],
@@ -81,6 +69,8 @@ a = Analysis(
 )
 
 a.datas += Tree( binpath, prefix = binpath, excludes = [ 'Thumbs.db', '.DS_Store' ], typecode = 'DATA' )
+a.datas += Tree( gravity, prefix = gravity, excludes = [ 'Thumbs.db', '.DS_Store' ], typecode = 'DATA' )
+a.datas += Tree( controls, prefix = controls, excludes = [ 'Thumbs.db', '.DS_Store' ], typecode = 'DATA' )
 
 pyz = PYZ(
 	a.pure,

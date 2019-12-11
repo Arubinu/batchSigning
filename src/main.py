@@ -132,7 +132,7 @@ def process( files, watermark, target, quality = 100, opacity = 100, gravity = (
 		error = False
 		output = False
 		try:
-			output = subprocess.check_output( cmd, stderr = subprocess.STDOUT, env = os.environ, startupinfo = startupinfo )
+			output = subprocess.check_output( cmd, stdin = subprocess.PIPE, stderr = subprocess.STDOUT, env = os.environ, startupinfo = startupinfo )
 			resume[ 0 ].append( file )
 		except subprocess.CalledProcessError as e:
 			error = True
