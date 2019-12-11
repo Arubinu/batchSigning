@@ -57,21 +57,6 @@ QScrollArea {
 	padding: 0px;
 	background: transparent;
 }
-#cross {
-	border-image: url(./resources/Status_Unavailable_2x.png) 0 0 0 0 stretch stretch;
-}
-#minimize {
-	border-image: url(./resources/Status_Partially_2x.png) 0 0 0 0 stretch stretch;
-}
-#maximize {
-	border-image: url(./resources/Status_None_2x.png) 0 0 0 0 stretch stretch;
-}
-#cross:hover {
-	border-image: url(./resources/Status_Unavailable_2xa.png) 0 0 0 0 stretch stretch;
-}
-#minimize:hover {
-	border-image: url(./resources/Status_Partially_2xa.png) 0 0 0 0 stretch stretch;
-}
 
 [cssClass~="separator"] {
 	background-color: rgb( 255, 255, 255 );
@@ -83,31 +68,7 @@ QScrollArea {
 #signature, #gallery, #target, #apply {
 	background: transparent;
 }
-/*
-#signature:disabled, #gallery:disabled, #target:disabled, #apply:disabled {
-	opacity: .5;
-}
-#signature {
-	width: 42px;
-	height: 42px;
-	image: url(./resources/signature.png) 0 0 0 0 stretch stretch;
-}
-#gallery {
-	width: 42px;
-	height: 42px;
-	image: url(./resources/gallery.png) 0 0 0 0 stretch stretch;
-}
-#target {
-	width: 42px;
-	height: 42px;
-	image: url(./resources/target.png) 0 0 0 0 stretch stretch;
-}
-#apply {
-	width: 42px;
-	height: 42px;
-	image: url(./resources/apply.png) 0 0 0 0 stretch stretch;
-}
-*/
+
 [cssClass~="button"] {
 	width: 155px;
 	height: 48px;

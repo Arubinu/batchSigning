@@ -3,6 +3,10 @@
 
 DIVIDE = [ 'png', 'tiff' ]
 EXTENSIONS = [ 'png', 'jpeg', 'tiff', 'webp' ]
+CONTROLS_CONFIGS = {
+	'default':	[ 'minimize', 'maximize', 'cross', 10, 26, 86, 38, -( 86 + 15 ) ],
+	'darwin':	[ 'cross', 'minimize', 'maximize', 20, 0, 76, 38, 8 ]
+}
 
 # built-in
 import os
@@ -83,10 +87,12 @@ def getfilesize( file ):
 
 	return ( filesize )
 
-def process( files, watermark, target, quality = 100, gravity = ( 0, 0 ), position = ( 0, 0 ), size = ( 0, 0 ), stopevent = None, sigprogress = None, sigcanceled = None, sigfinished = None ):
+def process( files, watermark, target, quality = 100, opacity = 100, gravity = ( 0, 0 ), position = ( 0, 0 ), size = ( 0, 0 ), stopevent = None, sigprogress = None, sigcanceled = None, sigfinished = None ):
 	global DIVIDE, os_name, startupinfo
 
 	composite = resource( 'bin', os_name, 'composite', bin = True )
+
+	opacity = ( '%d%%' % opacity )
 
 	g = ''
 	gravities = [ [ 'North', 'South' ], [ 'West', 'East' ] ]
@@ -122,7 +128,7 @@ def process( files, watermark, target, quality = 100, gravity = ( 0, 0 ), positi
 
 		t = os.path.join( target, os.path.basename( file ) )
 
-		cmd = [ composite, '-gravity', g, '-geometry', geometry, '-quality', q, watermark, file, t ]
+		cmd = [ composite, '-watermark', opacity, '-gravity', g, '-geometry', geometry, '-quality', q, watermark, file, t ]
 		error = False
 		output = False
 		try:
@@ -140,34 +146,54 @@ def process( files, watermark, target, quality = 100, gravity = ( 0, 0 ), positi
 	if sigfinished:
 		sigfinished( ( stopevent and stopevent.is_set() ), *resume )
 
-class Image( QtWidgets.QLabel ): # QtWidgets.QPushButton
-	def __init__( self, name = None, width = 0, height = 0, callback = None, parent = None ):
+class Image( QtWidgets.QLabel ):
+	def __init__( self, name, width, height, mouseover = False, callback = None, path = None, parent = None ):
 		super( Image, self ).__init__( parent )
 
-		pixmap = None
-		if name:
-			self.setObjectName( name )
-			pixmap = QtGui.QPixmap( resource( '%s.png' % name ) )
+		self.mouseoveron = False
 
-		mode = 'height'
-		if width and height:
-			self.setFixedSize( width, height )
-		elif width:
-			mode = 'width'
-			self.setFixedWidth( width )
-		elif height:
-			self.setFixedHeight( height )
-		else:
-			mode = None
-
-		if pixmap and not pixmap.isNull():
-			if mode:
-				size = ( width if mode == 'width' else height )
-				pixmap = getattr( pixmap, ( 'scaledTo%s' % mode.capitalize() ) )( size, QtCore.Qt.SmoothTransformation )
-
-			self.setPixmap( pixmap )
-
+		self.name = name
+		self.path = path
 		self.callback = callback
+		self.mouseover = mouseover
+
+		self.setObjectName( name )
+		self.setFixedSize( width, height )
+		self.setMouseTracking( False )
+
+	def enterEvent( self, event ):
+		self.mouseoveron = True
+		self.update()
+
+	def leaveEvent( self, event ):
+		self.mouseoveron = False
+		self.update()
+
+	def paintEvent( self, event ):
+		name = self.name
+		opacity = ( type( self.mouseover ) is not str )
+		white = ( self.isEnabled() and ( not self.mouseover or ( self.mouseover and self.mouseoveron ) ) )
+		if not opacity:
+			name = ( self.mouseover if white else name )
+
+		file = name
+		if self.path:
+			file = os.path.join( self.path, file )
+
+		painter = QtGui.QPainter( self )
+		painter.setRenderHints( ( QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform ), True )
+
+		image = QtGui.QPixmap.fromImage( QtGui.QImage( resource( '%s.png' % file ) ) )
+		if opacity:
+			painter.setOpacity( 1 if white else .3 )
+
+		center = QtCore.QPoint( ( self.width() / 2 ), ( self.height() / 2 ) )
+		painter.translate( center )
+
+		painter.scale( 1 * ( self.width() / image.width() ), 1 * ( self.width() / image.height() ) )
+		painter.translate( -( image.width() / 2 ), -( image.height() / 2 ) )
+
+		painter.drawPixmap( 0, 0, image.width(), image.height(), image )
 
 	def mousePressEvent( self, event ):
 		if self.callback:
@@ -185,7 +211,8 @@ class Gravity( QtWidgets.QLabel ):
 		self.reload()
 
 	def reload( self ):
-		pixmap = QtGui.QPixmap( resource( '%s%s.%s' % ( self.prefix, self.gravity, self.extension ) ) )
+		file = os.path.join( 'gravity', '%s%s.%s' % ( self.prefix, self.gravity, self.extension ) )
+		pixmap = QtGui.QPixmap( resource( file ) )
 		self.setPixmap( pixmap.scaledToHeight( 115, QtCore.Qt.SmoothTransformation ) )
 
 	def mousePressEvent( self, event ):
@@ -226,7 +253,7 @@ class Window( QtWidgets.QMainWindow ):
 		self.stopthread = threading.Event()
 
 	def setup( self ):
-		global EXTENSIONS
+		global EXTENSIONS, CONTROLS_CONFIGS
 
 		icon = QtGui.QIcon()
 		icon.addPixmap( QtGui.QPixmap( resource( 'icon.png' ) ), QtGui.QIcon.Normal, QtGui.QIcon.Off )
@@ -249,41 +276,54 @@ class Window( QtWidgets.QMainWindow ):
 		layout = QtWidgets.QVBoxLayout( self.defaultPage )
 		layout.setAlignment( QtCore.Qt.AlignBottom )
 		layout.setContentsMargins( 0, 0, 0, 0 )
-		self.central( self.defaultPage )
 
 		### Logo
-		wlogo = QtWidgets.QWidget( self )
-		wlogo.setObjectName( 'wlogo' )
-		wlogo.setGeometry( QtCore.QRect( 0, 0, 800, 50 ) )
+		top = QtWidgets.QWidget( self )
+		top.setObjectName( 'wlogo' )
+		top.setGeometry( QtCore.QRect( 0, 0, 800, 50 ) )
+		self.centralWidget.stackUnder( top )
 
-		llayout = QtWidgets.QVBoxLayout( wlogo )
+		llayout = QtWidgets.QVBoxLayout( top )
 		llayout.setAlignment( QtCore.Qt.AlignCenter )
 
-		logo = QtWidgets.QLabel()
-		logo.setObjectName( 'logo' )
-		logo.setAlignment( QtCore.Qt.AlignCenter )
-		logo.setFixedSize( 140, 25 )
-		llayout.addWidget( logo )
+		self.logo = QtWidgets.QLabel()
+		self.logo.setObjectName( 'logo' )
+		self.logo.setFixedSize( 140, 25 )
+		llayout.addWidget( self.logo )
 
 		### Controls
-		wcontrols = QtWidgets.QWidget( self )
-		wcontrols.setObjectName( 'wcontrols' )
-		wcontrols.setGeometry( QtCore.QRect( 8, 0, 76, 38 ) ) # 60x18
-		wlogo.stackUnder( wcontrols )
+		mode = 'default'
+		if os_name in CONTROLS_CONFIGS.keys():
+			mode = os_name
 
-		clayout = QtWidgets.QHBoxLayout( wcontrols )
+		suffix = ( '_' + mode )
+		icon1, icon2, icon3, size, spacing, width, height, position = CONTROLS_CONFIGS[ mode ]
+		if position < 0:
+			position = ( self.width() + position )
+
+		self.controls = QtWidgets.QWidget( self )
+		self.controls.setObjectName( 'controls' )
+		self.controls.setGeometry( QtCore.QRect( position, 0, width, height ) )
+		self.controls.setWindowFlags( QtCore.Qt.WindowStaysOnTopHint )
+
+		clayout = QtWidgets.QHBoxLayout( self.controls )
 		clayout.setAlignment( QtCore.Qt.AlignLeft )
 		clayout.setContentsMargins( 0, 0, 0, 0 )
-		clayout.setSpacing( 0 )
+		clayout.setSpacing( spacing )
 
-		cross = Image( 'cross', 20, 20, lambda item, event: self.close() )
-		clayout.addWidget( cross )
+		for item in [ icon1, icon2, icon3 ]:
+			event = None
+			if item == 'cross':
+				event = ( lambda icon, event: self.close() )
+			elif item == 'minimize':
+				event = ( lambda icon, event: self.showMinimized() )
 
-		minimize = Image( 'minimize', 20, 20, lambda item, event: self.showMinimized() )
-		clayout.addWidget( minimize )
+			file = ( item + suffix )
+			mouseover = ( ( file + '_hover' ) if bool( event ) else item )
 
-		maximize = Image( 'maximize', 20, 20 )
-		clayout.addWidget( maximize )
+			icon = Image( file, size, size, mouseover, event, 'controls' )
+			icon.setEnabled( bool( event ) )
+			clayout.addWidget( icon )
 
 		### Icons
 		icons = QtWidgets.QWidget()
@@ -293,48 +333,17 @@ class Window( QtWidgets.QMainWindow ):
 		ilayout.setSpacing( 38 )
 		layout.addWidget( icons )
 
-		## Icon
-		isignature = Image( 'signature', 42, 42 )
-		isignature.setObjectName( 'isignature' )
-		isignature.setProperty( 'cssClass', 'icon' )
-		ilayout.addWidget( isignature )
-		self.steps[ 0 ].append( isignature )
+		for index, item in enumerate( [ 'signature', 'gallery', 'target', 'apply' ] ):
+			if index:
+				separator = QtWidgets.QWidget()
+				separator.setProperty( 'cssClass', 'separator' )
+				ilayout.addWidget( separator )
+				self.steps[ index ].append( separator )
 
-		## Separator
-		separator = QtWidgets.QWidget()
-		separator.setProperty( 'cssClass', 'separator' )
-		ilayout.addWidget( separator )
-		self.steps[ 1 ].append( separator )
-
-		## Icon
-		igallery = Image( 'gallery', 42, 42 )
-		igallery.setProperty( 'cssClass', 'icon' )
-		ilayout.addWidget( igallery )
-		self.steps[ 1 ].append( igallery )
-
-		## Separator
-		separator = QtWidgets.QWidget()
-		separator.setProperty( 'cssClass', 'separator' )
-		ilayout.addWidget( separator )
-		self.steps[ 2 ].append( separator )
-
-		## Icon
-		itarget = Image( 'target', 42, 42 )
-		itarget.setProperty( 'cssClass', 'icon' )
-		ilayout.addWidget( itarget )
-		self.steps[ 2 ].append( itarget )
-
-		## Separator
-		separator = QtWidgets.QWidget()
-		separator.setProperty( 'cssClass', 'separator' )
-		ilayout.addWidget( separator )
-		self.steps[ 3 ].append( separator )
-
-		## Icon
-		iapply = Image( 'apply', 42, 42 )
-		iapply.setProperty( 'cssClass', 'icon' )
-		ilayout.addWidget( iapply )
-		self.steps[ 3 ].append( iapply )
+			icon = Image( item, 42, 42 )
+			icon.setProperty( 'cssClass', 'icon' )
+			ilayout.addWidget( icon )
+			self.steps[ index ].append( icon )
 
 		### Buttons
 		buttons = QtWidgets.QWidget()
@@ -540,7 +549,7 @@ class Window( QtWidgets.QMainWindow ):
 		lgravity.setAlignment( QtCore.Qt.AlignLeft )
 		slayout.addWidget( lgravity, 0, 0 )
 
-		gravity = Gravity( 'gravity_', 'png' )
+		gravity = Gravity( '', 'png' )
 		gravity.setObjectName( 'gravity' )
 		gravity.setAlignment( QtCore.Qt.AlignCenter )
 		gravity.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
@@ -558,8 +567,22 @@ class Window( QtWidgets.QMainWindow ):
 		squality.setToolTip( '0 to 100% (for lossless rendering)' )
 		squality.setRange( 1, 100 )
 		squality.setAttribute( QtCore.Qt.WA_MacShowFocusRect, 0 )
-		slayout.addWidget( squality, 0, 6 )
+		slayout.addWidget( squality, 0, 4 )
 		self.settings[ 'quality' ] = squality
+
+		## Opacity
+		lopacity = QtWidgets.QLabel( 'Opacity:' )
+		lopacity.setObjectName( 'lopacity' )
+		lopacity.setAlignment( QtCore.Qt.AlignLeft )
+		slayout.addWidget( lopacity, 0, 5 )
+
+		sopacity = QtWidgets.QSpinBox()
+		sopacity.setProperty( 'cssClass', 'spinbox' )
+		sopacity.setToolTip( '0 to 100% (for lossless rendering)' )
+		sopacity.setRange( 1, 100 )
+		sopacity.setAttribute( QtCore.Qt.WA_MacShowFocusRect, 0 )
+		slayout.addWidget( sopacity, 0, 6 )
+		self.settings[ 'opacity' ] = sopacity
 
 		## Position
 		lpositionx = QtWidgets.QLabel( 'Position X:' )
@@ -655,7 +678,7 @@ class Window( QtWidgets.QMainWindow ):
 		layout.addWidget( progressbar, 0, 0, 1, 2 )
 
 		## Preview
-		scroll = QtWidgets.QScrollArea();
+		scroll = QtWidgets.QScrollArea()
 		scroll.setAlignment( QtCore.Qt.AlignCenter )
 		scroll.setWidgetResizable( True )
 		scroll.setFixedHeight( 320 )
@@ -727,11 +750,12 @@ class Window( QtWidgets.QMainWindow ):
 		}
 
 		### Header on top
-		self.defaultPage.stackUnder( wlogo )
-		self.processPage.stackUnder( wlogo )
+		self.central( self.processPage )
+		self.central( self.defaultPage )
 
 		### Values
 		squality.setValue( 100 )
+		sopacity.setValue( 100 )
 		csize.setChecked( False )
 		swidth.setValue( 100 )
 		sheight.setValue( 100 )
@@ -893,6 +917,7 @@ class Window( QtWidgets.QMainWindow ):
 					files.append( file )
 
 			quality = self.settings[ 'quality' ].value()
+			opacity = self.settings[ 'opacity' ].value()
 			gravity = self.settings[ 'gravity' ].relative
 			position = ( self.settings[ 'x' ].value(), self.settings[ 'y' ].value() )
 			size = ( 0, 0 )
@@ -902,6 +927,7 @@ class Window( QtWidgets.QMainWindow ):
 			args = ( files, self.paths[ 0 ], self.paths[ 2 ] )
 			kwargs = {
 				'quality':		quality,
+				'opacity':		opacity,
 				'gravity':		gravity,
 				'position':		position,
 				'size':			size,
