@@ -353,176 +353,115 @@ class Window( QtWidgets.QMainWindow ):
 		blayout.setSpacing( 42 )
 		layout.addWidget( buttons )
 
-		## Button
-		vbwidget = QtWidgets.QWidget()
-		vbwidget.setProperty( 'cssClass', 'vbwidget' )
-		vlayout = QtWidgets.QVBoxLayout( vbwidget )
-		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setContentsMargins( 0, 0, 0, 0 )
-		vlayout.setSpacing( 18 )
-		blayout.addWidget( vbwidget )
-		self.steps[ 0 ].append( vbwidget )
+		steps = [
+			{
+				'name':			'signature',
+				'title':		'Select Signature',
+				'note':			', '.join( EXTENSIONS ),
+				'action':		lambda: self.define( 0 ),
+				'path':			True,
+				'change':		True,
+				'details':		True,
+				'!onchange':	[ 'change' ]
+			},
+			{
+				'name':			'gallery',
+				'title':		'Select Gallery',
+				'note':			'contains: %s' % ', '.join( EXTENSIONS ),
+				'action':		lambda: self.define( 1 ),
+				'path':			True,
+				'change':		True,
+				'details':		True,
+				'!onchange':	[ 'change' ]
+			},
+			{
+				'name':			'target',
+				'title':		'Select Target',
+				'note':			'',
+				'action':		lambda: self.define( 2 ),
+				'path':			True,
+				'change':		True,
+				'details':		False,
+				'!onchange':	[ 'change' ]
+			},
+			{
+				'name':			'apply',
+				'title':		'Apply',
+				'note':			'',
+				'action':		lambda: self.update( 4 ),
+				'path':			False,
+				'change':		False,
+				'details':		False,
+				'!onchange':	[ 'button_widget' ]
+			}
+		]
 
-		bsignature = QtWidgets.QPushButton( 'Select Signature' )
-		bsignature.setObjectName( 'bsignature' )
-		bsignature.setProperty( 'cssClass', 'button' )
-		bsignature.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		bsignature.clicked.connect( lambda: self.define( 0 ) )
-		vlayout.addWidget( bsignature )
-		self.steps[ 0 ].append( bsignature )
+		for index, step in enumerate( steps ):
+			## Button
+			button_widget = QtWidgets.QWidget()
+			button_widget.setProperty( 'cssClass', 'button_widget' )
+			button_layout = QtWidgets.QVBoxLayout( button_widget )
+			button_layout.setAlignment( QtCore.Qt.AlignTop )
+			button_layout.setContentsMargins( 0, 0, 0, 0 )
+			button_layout.setSpacing( 18 )
+			blayout.addWidget( button_widget )
+			if 'button_widget' not in step[ '!onchange' ]:
+				self.steps[ index ].append( button_widget )
 
-		nsignature = QtWidgets.QLabel( ', '.join( EXTENSIONS ) )
-		nsignature.setObjectName( 'nsignature' )
-		nsignature.setProperty( 'cssClass', 'note' )
-		nsignature.setAlignment( QtCore.Qt.AlignHCenter )
-		vlayout.addWidget( nsignature )
-		self.steps[ 0 ].append( nsignature )
+			button = QtWidgets.QPushButton( step[ 'title' ] )
+			button.setObjectName( 'b%s' % step[ 'name' ] )
+			button.setProperty( 'cssClass', 'button' )
+			button.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
+			button.clicked.connect( step[ 'action' ] )
+			button_layout.addWidget( button )
+			if 'button' not in step[ '!onchange' ]:
+				self.steps[ index ].append( button )
 
-		## Change
-		vcwidget = QtWidgets.QWidget()
-		vcwidget.setProperty( 'cssClass', 'vcwidget' )
-		vlayout = QtWidgets.QVBoxLayout( vcwidget )
-		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setContentsMargins( 0, 0, 0, 0 )
-		vlayout.setSpacing( 18 )
-		blayout.addWidget( vcwidget )
-		self.steps[ 0 ].append( vcwidget )
+			if step[ 'note' ]:
+				note = QtWidgets.QLabel( step[ 'note' ] )
+				note.setObjectName( 'n%s' % step[ 'name' ] )
+				note.setProperty( 'cssClass', 'note' )
+				note.setAlignment( QtCore.Qt.AlignHCenter )
+				button_layout.addWidget( note )
+				if 'note' not in step[ '!onchange' ]:
+					self.steps[ index ].append( note )
 
-		psignature = QtWidgets.QLabel()
-		psignature.setObjectName( 'psignature' )
-		psignature.setProperty( 'cssClass', 'path' )
-		psignature.setAlignment( QtCore.Qt.AlignHCenter )
-		vlayout.addWidget( psignature )
-		self.steps[ 0 ].append( psignature )
+			if step[ 'path' ] or step[ 'change' ] or step[ 'details' ]:
+				## Change
+				change_widget = QtWidgets.QWidget()
+				change_widget.setProperty( 'cssClass', 'change_widget' )
+				change_layout = QtWidgets.QVBoxLayout( change_widget )
+				change_layout.setAlignment( QtCore.Qt.AlignTop )
+				change_layout.setContentsMargins( 0, 0, 0, 0 )
+				change_layout.setSpacing( 18 )
+				blayout.addWidget( change_widget )
+				if 'change_widget' not in step[ '!onchange' ]:
+					self.steps[ index ].append( change_widget )
 
-		csignature = QtWidgets.QPushButton( 'Change' )
-		csignature.setObjectName( 'csignature' )
-		csignature.setProperty( 'cssClass', 'change' )
-		csignature.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		csignature.clicked.connect( lambda: self.define( 0 ) )
-		vlayout.addWidget( csignature )
+				path = QtWidgets.QLabel()
+				path.setObjectName( 'p%s' % step[ 'name' ] )
+				path.setProperty( 'cssClass', 'path' )
+				path.setAlignment( QtCore.Qt.AlignHCenter )
+				change_layout.addWidget( path )
+				if 'path' not in step[ '!onchange' ]:
+					self.steps[ index ].append( path )
 
-		dsignature = QtWidgets.QLabel()
-		dsignature.setObjectName( 'dsignature' )
-		dsignature.setProperty( 'cssClass', 'details' )
-		dsignature.setAlignment( QtCore.Qt.AlignHCenter )
-		vlayout.addWidget( dsignature )
-		self.steps[ 0 ].append( dsignature )
+				change = QtWidgets.QPushButton( 'Change' )
+				change.setObjectName( 'c%s' % step[ 'name' ] )
+				change.setProperty( 'cssClass', 'change' )
+				change.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
+				change.clicked.connect( step[ 'action' ] )
+				change_layout.addWidget( change )
+				if 'change' not in step[ '!onchange' ]:
+					self.steps[ index ].append( change )
 
-		## Button
-		vbwidget = QtWidgets.QWidget()
-		vbwidget.setProperty( 'cssClass', 'vbwidget' )
-		vlayout = QtWidgets.QVBoxLayout( vbwidget )
-		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setContentsMargins( 0, 0, 0, 0 )
-		vlayout.setSpacing( 18 )
-		blayout.addWidget( vbwidget )
-		self.steps[ 1 ].append( vbwidget )
-
-		bgallery = QtWidgets.QPushButton( 'Select Gallery' )
-		bgallery.setObjectName( 'bgallery' )
-		bgallery.setProperty( 'cssClass', 'button' )
-		bgallery.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		bgallery.clicked.connect( lambda: self.define( 1 ) )
-		vlayout.addWidget( bgallery )
-		self.steps[ 1 ].append( bgallery )
-
-		ngallery = QtWidgets.QLabel( 'contains: %s' % ', '.join( EXTENSIONS ) )
-		ngallery.setObjectName( 'ngallery' )
-		ngallery.setProperty( 'cssClass', 'note' )
-		ngallery.setAlignment( QtCore.Qt.AlignHCenter )
-		vlayout.addWidget( ngallery )
-		self.steps[ 1 ].append( ngallery )
-
-		## Change
-		vcwidget = QtWidgets.QWidget()
-		vcwidget.setProperty( 'cssClass', 'vcwidget' )
-		vlayout = QtWidgets.QVBoxLayout( vcwidget )
-		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setContentsMargins( 0, 0, 0, 0 )
-		vlayout.setSpacing( 18 )
-		blayout.addWidget( vcwidget )
-		self.steps[ 1 ].append( vcwidget )
-
-		pgallery = QtWidgets.QLabel()
-		pgallery.setObjectName( 'pgallery' )
-		pgallery.setProperty( 'cssClass', 'path' )
-		pgallery.setAlignment( QtCore.Qt.AlignHCenter )
-		vlayout.addWidget( pgallery )
-		self.steps[ 1 ].append( pgallery )
-
-		cgallery = QtWidgets.QPushButton( 'Change' )
-		cgallery.setObjectName( 'cgallery' )
-		cgallery.setProperty( 'cssClass', 'change' )
-		cgallery.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		cgallery.clicked.connect( lambda: self.define( 1 ) )
-		vlayout.addWidget( cgallery )
-
-		dgallery = QtWidgets.QLabel()
-		dgallery.setObjectName( 'dgallery' )
-		dgallery.setProperty( 'cssClass', 'details' )
-		dgallery.setAlignment( QtCore.Qt.AlignHCenter )
-		vlayout.addWidget( dgallery )
-		self.steps[ 1 ].append( dgallery )
-
-		## Button
-		vbwidget = QtWidgets.QWidget()
-		vbwidget.setProperty( 'cssClass', 'vbwidget' )
-		vlayout = QtWidgets.QVBoxLayout( vbwidget )
-		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setContentsMargins( 0, 0, 0, 0 )
-		vlayout.setSpacing( 18 )
-		blayout.addWidget( vbwidget )
-		self.steps[ 2 ].append( vbwidget )
-
-		btarget = QtWidgets.QPushButton( 'Select Target' )
-		btarget.setObjectName( 'btarget' )
-		btarget.setProperty( 'cssClass', 'button' )
-		btarget.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		btarget.clicked.connect( lambda: self.define( 2 ) )
-		vlayout.addWidget( btarget )
-		self.steps[ 2 ].append( btarget )
-
-		## Change
-		vcwidget = QtWidgets.QWidget()
-		vcwidget.setProperty( 'cssClass', 'vcwidget' )
-		vlayout = QtWidgets.QVBoxLayout( vcwidget )
-		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setContentsMargins( 0, 0, 0, 0 )
-		vlayout.setSpacing( 18 )
-		blayout.addWidget( vcwidget )
-		self.steps[ 2 ].append( vcwidget )
-
-		pgallery = QtWidgets.QLabel()
-		pgallery.setObjectName( 'pgallery' )
-		pgallery.setProperty( 'cssClass', 'path' )
-		pgallery.setAlignment( QtCore.Qt.AlignHCenter )
-		vlayout.addWidget( pgallery )
-		self.steps[ 2 ].append( pgallery )
-
-		cgallery = QtWidgets.QPushButton( 'Change' )
-		cgallery.setObjectName( 'cgallery' )
-		cgallery.setProperty( 'cssClass', 'change' )
-		cgallery.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		cgallery.clicked.connect( lambda: self.define( 2 ) )
-		vlayout.addWidget( cgallery )
-
-		## Button
-		vbwidget = QtWidgets.QWidget()
-		vbwidget.setProperty( 'cssClass', 'vbwidget' )
-		vlayout = QtWidgets.QVBoxLayout( vbwidget )
-		vlayout.setAlignment( QtCore.Qt.AlignTop )
-		vlayout.setContentsMargins( 0, 0, 0, 0 )
-		vlayout.setSpacing( 18 )
-		blayout.addWidget( vbwidget )
-
-		bapply = QtWidgets.QPushButton( 'Apply' )
-		bapply.setObjectName( 'bapply' )
-		bapply.setProperty( 'cssClass', 'button' )
-		bapply.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
-		bapply.clicked.connect( lambda: self.update( 4 ) )
-		vlayout.addWidget( bapply )
-		self.steps[ 3 ].append( bapply )
+				details = QtWidgets.QLabel()
+				details.setObjectName( 'd%s' % step[ 'name' ] )
+				details.setProperty( 'cssClass', 'details' )
+				details.setAlignment( QtCore.Qt.AlignHCenter )
+				change_layout.addWidget( details )
+				if 'details' not in step[ '!onchange' ]:
+					self.steps[ index ].append( details )
 
 		### Settings
 		labelsize = 90
@@ -898,51 +837,51 @@ class Window( QtWidgets.QMainWindow ):
 	def update( self, step = None ):
 		global EXTENSIONS
 
-		if step is not None and step > self.step:
+		if step is not None and step >= self.step:
 			self.step = step
 
-		if self.step > 3:
-			exts = []
-			for ext in EXTENSIONS:
-				exts.append( ext )
-				if ext == 'jpeg':
-					exts.append( 'jpg' )
+			if self.step > 3:
+				exts = []
+				for ext in EXTENSIONS:
+					exts.append( ext )
+					if ext == 'jpeg':
+						exts.append( 'jpg' )
 
-			files = []
-			gallery = self.paths[ 1 ]
-			for file in os.listdir( gallery ):
-				file = os.path.join( gallery, file )
-				ext = file.split( '.' )[ -1 ].lower()
-				if os.path.isfile( file ) and ext in exts:
-					files.append( file )
+				files = []
+				gallery = self.paths[ 1 ]
+				for file in os.listdir( gallery ):
+					file = os.path.join( gallery, file )
+					ext = file.split( '.' )[ -1 ].lower()
+					if os.path.isfile( file ) and ext in exts:
+						files.append( file )
 
-			quality = self.settings[ 'quality' ].value()
-			opacity = self.settings[ 'opacity' ].value()
-			gravity = self.settings[ 'gravity' ].relative
-			position = ( self.settings[ 'x' ].value(), self.settings[ 'y' ].value() )
-			size = ( 0, 0 )
-			if bool( self.settings[ 'resize' ].checkState() ):
-				size = ( self.settings[ 'width' ].value(), self.settings[ 'height' ].value() )
+				quality = self.settings[ 'quality' ].value()
+				opacity = self.settings[ 'opacity' ].value()
+				gravity = self.settings[ 'gravity' ].relative
+				position = ( self.settings[ 'x' ].value(), self.settings[ 'y' ].value() )
+				size = ( 0, 0 )
+				if bool( self.settings[ 'resize' ].checkState() ):
+					size = ( self.settings[ 'width' ].value(), self.settings[ 'height' ].value() )
 
-			args = ( files, self.paths[ 0 ], self.paths[ 2 ] )
-			kwargs = {
-				'quality':		quality,
-				'opacity':		opacity,
-				'gravity':		gravity,
-				'position':		position,
-				'size':			size,
-				'stopevent':	self.stopthread,
-				#'sigcanceled':	self.sigcanceled.emit,
-				'sigfinished':	self.sigfinished.emit,
-				'sigprogress':	self.sigprogress.emit,
-			}
+				args = ( files, self.paths[ 0 ], self.paths[ 2 ] )
+				kwargs = {
+					'quality':		quality,
+					'opacity':		opacity,
+					'gravity':		gravity,
+					'position':		position,
+					'size':			size,
+					'stopevent':	self.stopthread,
+					#'sigcanceled':	self.sigcanceled.emit,
+					'sigfinished':	self.sigfinished.emit,
+					'sigprogress':	self.sigprogress.emit,
+				}
 
-			self.errors = 0
-			self.startprocess()
+				self.errors = 0
+				self.startprocess()
 
-			self.thread = threading.Thread( target = process, args = args, kwargs = kwargs, daemon = True )
-			self.thread.start()
-			return
+				self.thread = threading.Thread( target = process, args = args, kwargs = kwargs, daemon = True )
+				self.thread.start()
+				return
 
 		for index, items in enumerate( self.steps ):
 			for item in self.steps[ index ]:
@@ -952,12 +891,12 @@ class Window( QtWidgets.QMainWindow ):
 				bshow = ( self.step <= index )
 				cshow = ( not bshow )
 
-				if property == 'vbwidget':
+				if property == 'button_widget':
 					getattr( item, ( 'show' if bshow else 'hide' ) )()
-				elif property == 'vcwidget':
+				elif property == 'change_widget':
 					getattr( item, ( 'show' if cshow else 'hide' ) )()
 
-				if property in [ 'vbwidget', 'vcwidget' ]:
+				if property in [ 'button_widget', 'change_widget' ]:
 					item.setFixedSize( 155, 120 )
 				elif property == 'separator':
 					item.setFixedSize( 80, 2 ) # 90, 2
