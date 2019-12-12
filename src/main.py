@@ -11,7 +11,7 @@ CONTROLS_CONFIGS = {
 # built-in
 import os
 import sys
-import math
+import json, math
 import threading
 import subprocess
 
@@ -32,6 +32,11 @@ except:
 os_name = sys.platform
 os_name = ( 'windows' if os_name.startswith( 'win' ) else os_name )
 os_name = ( 'linux' if os_name.startswith( 'linux' ) else os_name )
+
+# appdata
+appdata = os.getenv( 'APPDATA', None )
+if not appdata:
+	appdata = os.path.join( os.getenv( 'HOME' ), '.config', 'batchSigning' )
 
 # fix subprocess poped window
 startupinfo = None
@@ -87,22 +92,12 @@ def getfilesize( file ):
 
 	return ( filesize )
 
-def process( files, watermark, target, quality = 100, opacity = 100, gravity = ( 0, 0 ), position = ( 0, 0 ), size = ( 0, 0 ), stopevent = None, sigprogress = None, sigcanceled = None, sigfinished = None ):
+def process( files, watermark, target, quality = 100, opacity = 100, gravity = 'center', position = ( 0, 0 ), size = ( 0, 0 ), stopevent = None, sigprogress = None, sigcanceled = None, sigfinished = None ):
 	global DIVIDE, os_name, startupinfo
 
 	composite = resource( 'bin', os_name, 'composite', bin = True )
 
 	opacity = ( '%d%%' % opacity )
-
-	g = ''
-	gravities = [ [ 'North', 'South' ], [ 'West', 'East' ] ]
-	if gravity[ 0 ] or gravity[ 1 ]:
-		if gravity[ 0 ]:
-			g += ( gravities[ 0 ][ 1 if gravity[ 0 ] > 0 else 0 ] )
-		if gravity[ 1 ]:
-			g += ( gravities[ 1 ][ 1 if gravity[ 1 ] > 0 else 0 ] )
-	else:
-		g = 'Center'
 
 	geometry = '%s%d' % ( ( '+' if position[ 0 ] >= 0 else '' ), position[ 0 ] )
 	geometry += '%s%d' % ( ( '+' if position[ 1 ] >= 0 else '' ), position[ 1 ] )
@@ -128,7 +123,7 @@ def process( files, watermark, target, quality = 100, opacity = 100, gravity = (
 
 		t = os.path.join( target, os.path.basename( file ) )
 
-		cmd = [ composite, '-watermark', opacity, '-gravity', g, '-geometry', geometry, '-quality', q, watermark, file, t ]
+		cmd = [ composite, '-watermark', opacity, '-gravity', gravity, '-geometry', geometry, '-quality', q, watermark, file, t ]
 		error = False
 		output = False
 		try:
@@ -200,36 +195,86 @@ class Image( QtWidgets.QLabel ):
 			self.callback( self, event )
 
 class Gravity( QtWidgets.QLabel ):
-	def __init__( self, prefix, extension, parent = None ):
+	def __init__( self, parent = None ):
 		super( Gravity, self ).__init__( parent )
 
-		self.prefix = prefix
-		self.extension = extension
-
-		self.gravity = 'center'
-		self.relative = ( 0, 0 )
+		self._gravity = 'center'
+		self._relative = ( 0, 0 )
 		self.reload()
 
+	def file( self ):
+		return ( os.path.join( 'gravity', '%s.png' % self.gravity().lower() ) )
+
+	def gravity( self ):
+		return ( self._gravity )
+
+	def relative( self ):
+		return ( self._relative )
+
 	def reload( self ):
-		file = os.path.join( 'gravity', '%s%s.%s' % ( self.prefix, self.gravity, self.extension ) )
-		pixmap = QtGui.QPixmap( resource( file ) )
+		pixmap = QtGui.QPixmap( resource( self.file() ) )
 		self.setPixmap( pixmap.scaledToHeight( 115, QtCore.Qt.SmoothTransformation ) )
+
+	def setGravity( self, gravity ):
+		gravity = gravity.lower()
+
+		center = ( gravity == 'center' )
+		north = gravity.startswith( 'north' )
+		south = gravity.startswith( 'south' )
+		west = ( gravity[ -4: ] == 'west' )
+		east = ( gravity[ -4: ] == 'east' )
+
+		if not center:
+			tmp = gravity
+			if north or south:
+				tmp = tmp[ 5: ]
+			if west or east:
+				tmp = tmp[ :-4 ]
+
+			if len( tmp ):
+				return ( False )
+
+		relative = [ 0, 0 ]
+		if north:
+			relative[ 0 ] = -1
+		elif south:
+			relative[ 0 ] = 1
+		if west:
+			relative[ 1 ] = -1
+		elif east:
+			relative[ 1 ] = 1
+
+		for item in [ 'center', 'north', 'south', 'west', 'east' ]:
+			gravity = gravity.replace( item, item.capitalize() )
+
+		self._gravity = gravity
+		self._relative = tuple( relative )
+		self.reload()
+
+		return ( True )
+
+	def setRelative( self, y, x ):
+		if x not in [ -1, 0, 1 ] or y not in [ -1, 0, 1 ]:
+			return ( False )
+
+		gravity = ''
+		if not x and not y:
+			gravity = 'center'
+		elif not x:
+			gravity = ( 'north' if y < 0 else 'south' )
+		elif not y:
+			gravity = ( 'west' if x < 0 else 'east' )
+		else:
+			gravity = ( 'north' if y < 0 else 'south' )
+			gravity += ( 'west' if x < 0 else 'east' )
+
+		self.setGravity( gravity )
 
 	def mousePressEvent( self, event ):
 		x = math.floor( event.x() / ( self.width() / 3 ) )
 		y = math.floor( event.y() / ( self.height() / 3 ) )
-		if x == 1 and y == 1:
-			self.gravity = 'center'
-		elif x == 1:
-			self.gravity = ( 'north' if y < 1 else 'south' )
-		elif y == 1:
-			self.gravity = ( 'west' if x < 1 else 'east' )
-		else:
-			self.gravity = ( 'north' if y < 1 else 'south' )
-			self.gravity += ( 'west' if x < 1 else 'east' )
 
-		self.relative = ( y - 1, x - 1 )
-		self.reload()
+		self.setRelative( y - 1, x - 1 )
 
 class Window( QtWidgets.QMainWindow ):
 	sigcanceled = QtCore.pyqtSignal()
@@ -253,7 +298,7 @@ class Window( QtWidgets.QMainWindow ):
 		self.stopthread = threading.Event()
 
 	def setup( self ):
-		global EXTENSIONS, CONTROLS_CONFIGS
+		global EXTENSIONS, CONTROLS_CONFIGS, appdata
 
 		icon = QtGui.QIcon()
 		icon.addPixmap( QtGui.QPixmap( resource( 'icon.png' ) ), QtGui.QIcon.Normal, QtGui.QIcon.Off )
@@ -488,7 +533,7 @@ class Window( QtWidgets.QMainWindow ):
 		lgravity.setAlignment( QtCore.Qt.AlignLeft )
 		slayout.addWidget( lgravity, 0, 0 )
 
-		gravity = Gravity( '', 'png' )
+		gravity = Gravity()
 		gravity.setObjectName( 'gravity' )
 		gravity.setAlignment( QtCore.Qt.AlignCenter )
 		gravity.setCursor( QtGui.QCursor( QtCore.Qt.PointingHandCursor ) )
@@ -693,11 +738,40 @@ class Window( QtWidgets.QMainWindow ):
 		self.central( self.defaultPage )
 
 		### Values
-		squality.setValue( 100 )
-		sopacity.setValue( 100 )
-		csize.setChecked( False )
-		swidth.setValue( 100 )
-		sheight.setValue( 100 )
+		data = {
+			'gravity':	'center',
+			'quality':	100,
+			'opacity':	100,
+			'x':		0,
+			'y':		0,
+			'opacity':	100,
+			'resize':	False,
+			'width':	100,
+			'height':	100
+		}
+
+		try:
+			config = os.path.join( appdata, 'settings.json' )
+			if os.path.isfile( config ):
+				with open( config, 'r', encoding = 'utf-8' ) as f:
+					loaddata = json.loads( f.read() )
+					for key in loaddata.keys():
+						value = loaddata[ key ]
+						if key in data.keys() and type( value ) is type( data[ key ] ):
+							data[ key ] = value
+		except:
+			pass
+
+		for key in data.keys():
+			item = self.settings[ key ]
+
+			method = 'value'
+			if type( item ) is Gravity:
+				method = 'gravity'
+			elif type( item ) is QtWidgets.QCheckBox:
+				method = 'checked'
+
+			getattr( item, 'set%s' % method.capitalize() )( data[ key ] )
 
 		self.change()
 		self.update()
@@ -835,12 +909,34 @@ class Window( QtWidgets.QMainWindow ):
 					self.update( step + 1 )
 
 	def update( self, step = None ):
-		global EXTENSIONS
+		global EXTENSIONS, appdata
 
 		if step is not None and step >= self.step:
 			self.step = step
 
 			if self.step > 3:
+				try:
+					if not os.path.isdir( appdata ):
+						os.mkdir( appdata )
+
+					config = os.path.join( appdata, 'settings.json' )
+					with open( config, 'w', encoding = 'utf-8' ) as f:
+						data = {}
+						for key in [ 'gravity', 'quality', 'opacity', 'x', 'y', 'resize', 'width', 'height' ]:
+							item = self.settings[ key ]
+
+							method = 'value'
+							if type( item ) is Gravity:
+								method = 'gravity'
+							elif type( item ) is QtWidgets.QCheckBox:
+								method = 'isChecked'
+
+							data[ key ] = getattr( item, method )()
+
+						f.write( json.dumps( data ) )
+				except:
+					pass
+
 				exts = []
 				for ext in EXTENSIONS:
 					exts.append( ext )
@@ -857,7 +953,7 @@ class Window( QtWidgets.QMainWindow ):
 
 				quality = self.settings[ 'quality' ].value()
 				opacity = self.settings[ 'opacity' ].value()
-				gravity = self.settings[ 'gravity' ].relative
+				gravity = self.settings[ 'gravity' ].gravity()
 				position = ( self.settings[ 'x' ].value(), self.settings[ 'y' ].value() )
 				size = ( 0, 0 )
 				if bool( self.settings[ 'resize' ].checkState() ):
@@ -871,7 +967,6 @@ class Window( QtWidgets.QMainWindow ):
 					'position':		position,
 					'size':			size,
 					'stopevent':	self.stopthread,
-					#'sigcanceled':	self.sigcanceled.emit,
 					'sigfinished':	self.sigfinished.emit,
 					'sigprogress':	self.sigprogress.emit,
 				}
