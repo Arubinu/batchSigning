@@ -36,7 +36,8 @@ os_name = ( 'linux' if os_name.startswith( 'linux' ) else os_name )
 # appdata
 appdata = os.getenv( 'APPDATA', None )
 if not appdata:
-	appdata = os.path.join( os.getenv( 'HOME' ), '.config', 'batchSigning' )
+	appdata = os.path.join( os.getenv( 'HOME' ), '.config' )
+appdata = os.path.join( appdata, 'batchSigning' )
 
 # fix subprocess poped window
 startupinfo = None
