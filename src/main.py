@@ -93,7 +93,7 @@ def getfilesize( file ):
 
 	return ( filesize )
 
-def process( files, watermark, target, quality = 100, opacity = 100, gravity = 'center', position = ( 0, 0 ), size = ( 0, 0 ), stopevent = None, sigprogress = None, sigcanceled = None, sigfinished = None ):
+def process( files, watermark, target, quality = 100, opacity = 100, gravity = 'Center', position = ( 0, 0 ), size = ( 0, 0 ), stopevent = None, sigprogress = None, sigcanceled = None, sigfinished = None ):
 	global DIVIDE, os_name, startupinfo
 
 	composite = resource( 'bin', os_name, 'composite', bin = True )
@@ -102,8 +102,6 @@ def process( files, watermark, target, quality = 100, opacity = 100, gravity = '
 
 	geometry = '%s%d' % ( ( '+' if position[ 0 ] >= 0 else '' ), position[ 0 ] )
 	geometry += '%s%d' % ( ( '+' if position[ 1 ] >= 0 else '' ), position[ 1 ] )
-	if size[ 0 ] and size[ 1 ]:
-		geometry = '%dx%d%s' % ( size[ 0 ], size[ 1 ], geometry )
 
 	resume = [ [], [], [] ]
 	total = len( files )
@@ -124,7 +122,13 @@ def process( files, watermark, target, quality = 100, opacity = 100, gravity = '
 
 		t = os.path.join( target, os.path.basename( file ) )
 
-		cmd = [ composite, '-watermark', opacity, '-gravity', gravity, '-geometry', geometry, '-quality', q, watermark, file, t ]
+		cmd = [ composite, '-watermark', opacity, '-gravity', gravity, '-geometry', geometry, '-quality', q ]
+		if size[ 0 ] and size[ 1 ]:
+			cmd += [ '(', watermark, '-resize', ( '%dx%d!' % ( size[ 0 ], size[ 1 ] ) ), ')' ]
+		else:
+			cmd.append( watermark )
+		cmd += [ file, t ]
+
 		error = False
 		output = False
 		try:
@@ -199,9 +203,7 @@ class Gravity( QtWidgets.QLabel ):
 	def __init__( self, parent = None ):
 		super( Gravity, self ).__init__( parent )
 
-		self._gravity = 'center'
-		self._relative = ( 0, 0 )
-		self.reload()
+		self.setGravity( 'center' )
 
 	def file( self ):
 		return ( os.path.join( 'gravity', '%s.png' % self.gravity().lower() ) )
