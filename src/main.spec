@@ -22,18 +22,18 @@ if p.find( 'Windows' ) >= 0:
 	ext = '.exe'
 	icon = 'ico'
 	syst = 'windows'
-	pathex.append( 'C:\\Users\\' + os.getenv( 'USERNAME' ) + '\\AppData\\Local\\Programs\\Python\\Python37\\Lib\\site-packages\\PyQt5' )
-	pathex.append( 'C:\\Users\\' + os.getenv( 'USERNAME' ) + '\\AppData\\Local\\Programs\\Python\\Python37\\Lib\\site-packages\\PyQt5\\Qt\\bin' )
+	pathex.append( 'C:\\Users\\' + os.getenv( 'USERNAME' ) + '\\AppData\\Local\\Programs\\Python\\Python36\\Lib\\site-packages\\PyQt5' )
+	pathex.append( 'C:\\Users\\' + os.getenv( 'USERNAME' ) + '\\AppData\\Local\\Programs\\Python\\Python36\\Lib\\site-packages\\PyQt5\\Qt\\bin' )
 	pathex.append( 'C:\\Program Files (x86)\\Windows Kits\\10\\Redist\\ucrt\\DLLs\\x64' )
 elif p.find( 'Darwin' ) >= 0:
 	ext = '.app'
 	icon = 'icns'
 	syst = 'darwin'
-	pathex.append( '/Library/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages/PyQt5' )
+	pathex.append( '/Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/site-packages/PyQt5' )
 elif p.find( 'Linux' ) >= 0:
 	icon = 'png'
 	syst = 'linux'
-	pathex.append( '/home/' + os.getenv( 'USER' ) + '/.local/lib/python3.7/site-packages/PyQt5' )
+	pathex.append( '/home/' + os.getenv( 'USER' ) + '/.local/lib/python3.6/site-packages/PyQt5' )
 else:
 	raise ( Exception( 'Unsupported System' ) )
 	sys.exit( 1 )
